@@ -88,6 +88,7 @@
         <h4>Video preview</h4>
         <video id="localVideo" autoplay playsinline muted></video>
         <video id="remoteVideo" autoplay playsinline></video>
+        <div id="scanStatus" class="muted hidden"></div>
       </div>
     </div>
 
@@ -125,6 +126,7 @@
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <script src="https://unpkg.com/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <script>
 (() => {
@@ -189,6 +191,53 @@
       stream.getTracks().forEach(track => {
         try { pc.addTrack(track, stream); } catch {}
       });
+
+      const video = $('localVideo');
+      const statusEl = $('scanStatus');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      let scanning = true;
+      statusEl.textContent = 'Scanning for Answer QR…';
+      statusEl.classList.remove('hidden');
+
+      async function scan() {
+        if (!scanning) return;
+        if (video.videoWidth === 0) {
+          requestAnimationFrame(scan);
+          return;
+        }
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = window.jsQR(img.data, canvas.width, canvas.height);
+        if (code && code.data.includes('#answer=')) {
+          const m = code.data.match(/#answer=([A-Za-z0-9\-_]+)/);
+          if (m) {
+            statusEl.textContent = 'Answer detected!';
+            try {
+              const answerObj = inflateFromB64Url(m[1]);
+              if (answerObj.room === room && answerObj.role === 'guest' && answerObj.sdpType === 'answer') {
+                await pc.setRemoteDescription({ type: 'answer', sdp: answerObj.sdp });
+                updatePills(roleText);
+                statusEl.textContent = 'Answer applied!';
+                $('answerBlock').classList.add('hidden');
+                video.classList.add('hidden');
+                setTimeout(() => statusEl.classList.add('hidden'), 2000);
+                scanning = false;
+                return;
+              } else {
+                statusEl.textContent = 'Invalid answer';
+              }
+            } catch (e) {
+              console.error(e);
+              statusEl.textContent = 'Failed to apply answer';
+            }
+          }
+        }
+        requestAnimationFrame(scan);
+      }
+      requestAnimationFrame(scan);
     } catch (err) {
       console.error('video error', err);
     }
