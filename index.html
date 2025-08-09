@@ -75,11 +75,19 @@
           <input id="inviteLink" class="grow mono" readonly />
           <button id="copyInvite" class="btn">Copy</button>
         </div>
+        <div class="row">
+          <button id="enableVideo" class="btn">Enable video</button>
+        </div>
       </div>
       <div id="answerBlock" class="hidden">
         <h4>Paste guest Answer</h4>
         <input id="answerInput" class="grow mono" placeholder="#answer=…" />
         <button id="applyAnswer" class="btn">Apply Answer</button>
+      </div>
+      <div id="videoBlock" class="hidden">
+        <h4>Video preview</h4>
+        <video id="localVideo" autoplay playsinline muted></video>
+        <video id="remoteVideo" autoplay playsinline></video>
       </div>
     </div>
 
@@ -96,11 +104,6 @@
           <input id="answerLink" class="grow mono" readonly />
           <button id="copyAnswer" class="btn">Copy</button>
         </div>
-      </div>
-      <div id="videoBlock" class="hidden">
-        <h4>Video preview</h4>
-        <video id="localVideo" autoplay playsinline muted></video>
-        <video id="remoteVideo" autoplay playsinline></video>
       </div>
     </div>
 
@@ -434,6 +437,9 @@
       // Render QR
       renderQr('qr', link);
 
+      // Enable video for scanning guest answer
+      $('enableVideo').onclick = () => { promptEnableVideo(pc); };
+
       // Apply guest's answer
       $('applyAnswer').onclick = async () => {
         const val = $('answerInput').value.trim();
@@ -511,7 +517,6 @@
       // Render QR
       renderQr('qrAnswer', link);
       $('guestAnswerBlock').classList.remove('hidden');
-      await promptEnableVideo(pc);
     };
 
     $('cancelGuest').onclick = () => {
