@@ -20,6 +20,7 @@
     .muted { color: var(--muted); font-size: 12px; }
     #rendered { border: 1px solid var(--border); border-radius: 8px; padding: var(--pad); min-height: 320px; overflow: auto; }
     #qr canvas { width: 240px; height: 240px; }
+    #videoBlock video { width: 240px; border: 1px solid var(--border); border-radius: 8px; }
     .hidden { display: none !important; }
     .grow { flex: 1; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; }
@@ -96,6 +97,11 @@
           <button id="copyAnswer" class="btn">Copy</button>
         </div>
       </div>
+      <div id="videoBlock" class="hidden">
+        <h4>Video preview</h4>
+        <video id="localVideo" autoplay playsinline muted></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+      </div>
     </div>
 
     <div id="noRoomPane" class="hidden">
@@ -147,6 +153,30 @@
     setText($('roomPill'), `room: ${room || '—'}`);
     setText($('role'), `role: ${roleText}`);
     setText($('peers'), `peers: ${connections.size}`);
+  }
+
+  function renderQr(targetId, link) {
+    const el = $(targetId);
+    el.innerHTML = '';
+    QRCode.toCanvas(document.createElement('canvas'), link, { width: 240 }, (err, canvas) => {
+      if (!err) el.appendChild(canvas);
+    });
+  }
+
+  async function promptEnableVideo(pc) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    const ok = window.confirm('Enable video?');
+    if (!ok) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      $('localVideo').srcObject = stream;
+      $('videoBlock').classList.remove('hidden');
+      stream.getTracks().forEach(track => {
+        try { pc.addTrack(track, stream); } catch {}
+      });
+    } catch (err) {
+      console.error('video error', err);
+    }
   }
 
   // ---------- State & rendering ----------
@@ -263,6 +293,14 @@
         wireDataChannel(id, dc);
       };
     }
+
+    pc.ontrack = (ev) => {
+      const rv = $('remoteVideo');
+      if (rv) {
+        rv.srcObject = ev.streams[0];
+        $('videoBlock').classList.remove('hidden');
+      }
+    };
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'connected') {
@@ -382,10 +420,7 @@
       $('copyInvite').onclick = () => { navigator.clipboard.writeText(link); };
 
       // Render QR
-      $('qr').innerHTML = '';
-      QRCode.toCanvas(document.createElement('canvas'), link, { width: 240 }, (err, canvas) => {
-        if (!err) $('qr').appendChild(canvas);
-      });
+      renderQr('qr', link);
 
       // Apply guest's answer
       $('applyAnswer').onclick = async () => {
@@ -462,11 +497,9 @@
       $('copyAnswer').onclick = () => { navigator.clipboard.writeText(link); };
 
       // Render QR
-      $('qrAnswer').innerHTML = '';
-      QRCode.toCanvas(document.createElement('canvas'), link, { width: 240 }, (err, canvas) => {
-        if (!err) $('qrAnswer').appendChild(canvas);
-      });
+      renderQr('qrAnswer', link);
       $('guestAnswerBlock').classList.remove('hidden');
+      await promptEnableVideo(pc);
     };
 
     $('cancelGuest').onclick = () => {
