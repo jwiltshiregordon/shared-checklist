@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shared Checklist (No-backend WebRTC)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --pad: 12px; --gap: 10px; --border: #ddd; --muted:#666; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif; margin: 0; }
+    header, footer { padding: var(--pad); border-bottom: 1px solid var(--border); }
+    header { display: flex; flex-wrap: wrap; gap: var(--gap); align-items: center; }
+    main { display: grid; grid-template-columns: 1fr; gap: var(--gap); padding: var(--pad); }
+    @media (min-width: 900px) { main { grid-template-columns: 1fr 1fr; } }
+    .row { display: flex; gap: var(--gap); align-items: center; flex-wrap: wrap; }
+    .pill { padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; color: var(--muted); }
+    .btn { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer; }
+    .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    textarea { width: 100%; min-height: 320px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 14px; padding: var(--pad); border: 1px solid var(--border); border-radius: 8px; }
+    .card { border: 1px solid var(--border); border-radius: 10px; padding: var(--pad); }
+    .muted { color: var(--muted); font-size: 12px; }
+    #rendered { border: 1px solid var(--border); border-radius: 8px; padding: var(--pad); min-height: 320px; overflow: auto; }
+    #qr canvas { width: 240px; height: 240px; }
+    .hidden { display: none !important; }
+    .grow { flex: 1; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="row grow">
+    <div id="role" class="pill">role: —</div>
+    <div id="peers" class="pill">peers: 0</div>
+    <div id="roomPill" class="pill">room: —</div>
+  </div>
+  <div class="row">
+    <button id="modeEdit" class="btn">Edit list</button>
+    <button id="modeUse" class="btn">Use list</button>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h3>Checklist</h3>
+    <div id="editPane">
+      <textarea id="editor" spellcheck="false" placeholder="- [ ] Example item
+- [x] Packed socks
+"></textarea>
+      <div class="row">
+        <button id="saveLocal" class="btn">Save locally</button>
+        <span class="muted">Autosyncs to peers when connected.</span>
+      </div>
+    </div>
+    <div id="usePane" class="hidden">
+      <div id="rendered"></div>
+      <div class="row">
+        <button id="refreshRender" class="btn">Re-render</button>
+        <span class="muted">Click checkboxes to toggle; updates sync to peers.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Connect peers (no server)</h3>
+    <div id="hostPane" class="hidden">
+      <p class="muted">You are the <strong>host</strong>. Create an invite for each guest. They’ll scan your QR, then show you their Answer QR for you to paste below. Supports up to two guests.</p>
+      <div class="row">
+        <button id="newInvite" class="btn">Create invite for a guest</button>
+        <button id="endAll" class="btn">Disconnect all</button>
+      </div>
+      <div id="inviteBlock" class="hidden">
+        <h4>Invite QR / Link</h4>
+        <div id="qr" class="row"></div>
+        <div class="row">
+          <input id="inviteLink" class="grow mono" readonly />
+          <button id="copyInvite" class="btn">Copy</button>
+        </div>
+      </div>
+      <div id="answerBlock" class="hidden">
+        <h4>Paste guest Answer</h4>
+        <input id="answerInput" class="grow mono" placeholder="#answer=…" />
+        <button id="applyAnswer" class="btn">Apply Answer</button>
+      </div>
+    </div>
+
+    <div id="guestPane" class="hidden">
+      <p class="muted">You are a <strong>guest</strong>. This page was opened with a host’s invite. Generate your Answer for the host to scan or copy back.</p>
+      <div class="row">
+        <button id="makeAnswer" class="btn">Create my Answer</button>
+        <button id="cancelGuest" class="btn">Cancel</button>
+      </div>
+      <div id="guestAnswerBlock" class="hidden">
+        <h4>Answer QR / Link (give to host)</h4>
+        <div id="qrAnswer" class="row"></div>
+        <div class="row">
+          <input id="answerLink" class="grow mono" readonly />
+          <button id="copyAnswer" class="btn">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="noRoomPane" class="hidden">
+      <p class="muted">No <code>?room=NAME</code> provided. Set a room name:</p>
+      <div class="row">
+        <input id="roomInput" placeholder="e.g. trip-alps" />
+        <button id="setRoom" class="btn">Use room</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="row">
+  <span class="muted">This app uses WebRTC DataChannels with public STUN only. No servers are involved; invites/answers are encoded into the URL fragment, exchanged via QR or copy/paste.</span>
+</footer>
+
+<!-- libs: pako (deflate), qrcode, marked (markdown) -->
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+
+<script>
+(() => {
+  // ---------- URL & storage helpers ----------
+  const qs = new URLSearchParams(location.search);
+  const room = qs.get('room') || '';
+  const roomKey = (k) => `checklist:${room}:${k}`;
+
+  const $ = (id) => document.getElementById(id);
+  const setText = (el, txt) => { el.textContent = txt; };
+  const base64url = {
+    encode: (bytes) => btoa(String.fromCharCode(...bytes))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),
+    decode: (str) => Uint8Array.from(atob(str.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0)),
+  };
+
+  function deflateToB64Url(obj) {
+    const json = new TextEncoder().encode(JSON.stringify(obj));
+    const def = window.pako.deflateRaw(json);
+    return base64url.encode(def);
+  }
+  function inflateFromB64Url(b64) {
+    const def = base64url.decode(b64);
+    const json = window.pako.inflateRaw(def);
+    return JSON.parse(new TextDecoder().decode(json));
+  }
+
+  function updatePills(roleText) {
+    setText($('roomPill'), `room: ${room || '—'}`);
+    setText($('role'), `role: ${roleText}`);
+    setText($('peers'), `peers: ${connections.size}`);
+  }
+
+  // ---------- State & rendering ----------
+  const editor = $('editor');
+  const rendered = $('rendered');
+  const modeEditBtn = $('modeEdit');
+  const modeUseBtn = $('modeUse');
+  const editPane = $('editPane');
+  const usePane = $('usePane');
+
+  function renderMarkdownToHtml(text) {
+    // Convert "- [ ] item" / "- [x] item" into real checkboxes
+    // We render via marked, then post-process checkboxes to be interactive.
+    rendered.innerHTML = marked.parse(text);
+    // Make checkboxes interactive: find list items that begin with [ ] or [x]
+    // and wire clicks to toggle underlying markdown.
+    const lines = text.split(/\r?\n/);
+    // Map from line index to element checkbox
+    const checkboxes = rendered.querySelectorAll('input[type="checkbox"]');
+    // If marked created checkboxes (it will if we use GitHub-style task list syntax),
+    // wire them up; otherwise, we also support "- [ ]" as plain text -> create checkboxes is handled by marked's gfm.
+    checkboxes.forEach((cb, idx) => {
+      cb.addEventListener('change', () => {
+        // Find the nth task line and toggle it in the source
+        let count = -1;
+        const newLines = lines.map(l => {
+          const m = /^\s*[-*]\s+\[( |x|X)\]\s+/.exec(l);
+          if (!m) return l;
+          count++;
+          if (count !== idx) return l;
+          const checked = (m[1].toLowerCase() === 'x');
+          return l.replace(/^\s*([-*]\s+)\[( |x|X)\]/, (_, p1) => `${p1}[${checked ? ' ' : 'x'}]`);
+        });
+        const newText = newLines.join('\n');
+        setEditorText(newText, {local: true, reason: 'toggle'});
+      });
+    });
+  }
+
+  function setEditorText(text, {local, reason} = {}) {
+    if (editor.value === text) return;
+    editor.value = text;
+    // Persist locally
+    try { localStorage.setItem(roomKey('doc'), text); } catch {}
+    // Re-render if in use mode
+    if (!editPane.classList.contains('hidden')) {
+      // no-op
+    } else {
+      renderMarkdownToHtml(text);
+    }
+    // Broadcast if local change
+    if (local) {
+      broadcast({type: 'doc', doc: text, reason});
+    }
+  }
+
+  function loadInitial() {
+    const stored = localStorage.getItem(roomKey('doc'));
+    if (stored != null) {
+      editor.value = stored;
+    } else {
+      // Seed with example
+      editor.value = `# Packing List
+
+- [ ] Passport
+- [ ] Tickets
+- [ ] Charger
+- [ ] Toiletries
+- [ ] Socks
+`;
+    }
+    renderMarkdownToHtml(editor.value);
+  }
+
+  // Mode toggles
+  modeEditBtn.addEventListener('click', () => {
+    editPane.classList.remove('hidden');
+    usePane.classList.add('hidden');
+  });
+  modeUseBtn.addEventListener('click', () => {
+    editPane.classList.add('hidden');
+    usePane.classList.remove('hidden');
+    renderMarkdownToHtml(editor.value);
+  });
+  $('refreshRender').addEventListener('click', () => renderMarkdownToHtml(editor.value));
+  $('saveLocal').addEventListener('click', () => {
+    try { localStorage.setItem(roomKey('doc'), editor.value); } catch {}
+  });
+
+  // Push edits as the user types (debounced)
+  let typingTimer = null;
+  editor.addEventListener('input', () => {
+    try { localStorage.setItem(roomKey('doc'), editor.value); } catch {}
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      broadcast({type: 'doc', doc: editor.value, reason: 'typing'});
+    }, 200);
+  });
+
+  // ---------- WebRTC plumbing (host-star; reliable, ordered) ----------
+  const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+  const connections = new Map(); // id -> { pc, dc, state }
+
+  function newPeerConnection(id, asHost) {
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    let dc = null;
+
+    if (asHost) {
+      dc = pc.createDataChannel('data', { ordered: true });
+      wireDataChannel(id, dc);
+    } else {
+      pc.ondatachannel = (ev) => {
+        dc = ev.channel;
+        wireDataChannel(id, dc);
+      };
+    }
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected') {
+        updatePills(roleText);
+        // Host sends current doc on connect
+        if (asHost) {
+          sendTo(id, {type:'doc', doc: editor.value, reason:'initial-sync'});
+        }
+      }
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        connections.delete(id);
+        updatePills(roleText);
+      }
+    };
+
+    pc.onicegatheringstatechange = () => {
+      // no-op, we poll waiting for 'complete'
+    };
+
+    connections.set(id, { pc, get dc(){ return dc; } });
+    updatePills(roleText);
+    return pc;
+  }
+
+  function waitIceComplete(pc, timeoutMs = 3000) {
+    if (pc.iceGatheringState === 'complete') return Promise.resolve();
+    return new Promise((resolve) => {
+      const t = setTimeout(() => {
+        pc.onicegatheringstatechange = null;
+        resolve();
+      }, timeoutMs);
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === 'complete') {
+          clearTimeout(t);
+          pc.onicegatheringstatechange = null;
+          resolve();
+        }
+      };
+    });
+  }
+
+  function wireDataChannel(id, dc) {
+    dc.onopen = () => { updatePills(roleText); };
+    dc.onclose = () => { updatePills(roleText); };
+    dc.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data);
+      handleMessage(id, msg);
+    };
+  }
+
+  function sendTo(id, obj) {
+    const entry = connections.get(id);
+    if (!entry) return;
+    const { dc } = entry;
+    if (dc && dc.readyState === 'open') {
+      dc.send(JSON.stringify(obj));
+    }
+  }
+
+  function broadcast(obj) {
+    for (const [id, { dc }] of connections.entries()) {
+      if (dc && dc.readyState === 'open') {
+        dc.send(JSON.stringify(obj));
+      }
+    }
+  }
+
+  function handleMessage(id, msg) {
+    switch (msg.type) {
+      case 'doc':
+        setEditorText(msg.doc, {local:false, reason: 'remote'});
+        break;
+      case 'request-doc':
+        sendTo(id, {type:'doc', doc: editor.value, reason:'requested'});
+        break;
+      default:
+        // ignore unknown
+        break;
+    }
+  }
+
+  // ---------- Host flow ----------
+  let roleText = '—';
+  const hostPane = $('hostPane');
+  const guestPane = $('guestPane');
+  const noRoomPane = $('noRoomPane');
+
+  function asHostInit() {
+    roleText = 'host';
+    hostPane.classList.remove('hidden');
+    updatePills(roleText);
+
+    $('newInvite').onclick = async () => {
+      if (connections.size >= 2) {
+        alert('Max two guests connected.');
+        return;
+      }
+      $('inviteBlock').classList.remove('hidden');
+      $('answerBlock').classList.remove('hidden');
+
+      const peerId = `guest-${Date.now()}`;
+      const pc = newPeerConnection(peerId, true);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await waitIceComplete(pc);
+
+      const inviteBlob = {
+        v: 1,
+        room,
+        role: 'host',
+        sdpType: pc.localDescription.type,
+        sdp: pc.localDescription.sdp,
+      };
+      const encoded = deflateToB64Url(inviteBlob);
+      const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}#invite=${encoded}`;
+      $('inviteLink').value = link;
+      $('copyInvite').onclick = () => { navigator.clipboard.writeText(link); };
+
+      // Render QR
+      $('qr').innerHTML = '';
+      QRCode.toCanvas(document.createElement('canvas'), link, { width: 240 }, (err, canvas) => {
+        if (!err) $('qr').appendChild(canvas);
+      });
+
+      // Apply guest's answer
+      $('applyAnswer').onclick = async () => {
+        const val = $('answerInput').value.trim();
+        const m = val.match(/#answer=([A-Za-z0-9\-_]+)/);
+        if (!m) { alert('Paste a URL or fragment containing #answer=…'); return; }
+        const answerObj = inflateFromB64Url(m[1]);
+        if (answerObj.room !== room || answerObj.role !== 'guest' || answerObj.sdpType !== 'answer') {
+          alert('This answer blob does not match this room/role.');
+          return;
+        }
+        try {
+          await pc.setRemoteDescription({ type: 'answer', sdp: answerObj.sdp });
+          $('answerInput').value = '';
+          updatePills(roleText);
+        } catch (e) {
+          console.error(e);
+          alert('Failed to apply answer. See console.');
+        }
+      };
+    };
+
+    $('endAll').onclick = () => {
+      for (const [id, { pc }] of connections) {
+        try { pc.close(); } catch {}
+        connections.delete(id);
+      }
+      updatePills(roleText);
+    };
+  }
+
+  // ---------- Guest flow ----------
+  async function asGuestInit(inviteB64) {
+    roleText = 'guest';
+    guestPane.classList.remove('hidden');
+    updatePills(roleText);
+
+    // Decode invite
+    let invite;
+    try { invite = inflateFromB64Url(inviteB64); } catch (e) {
+      alert('Invalid invite blob.');
+      return;
+    }
+    if (invite.room !== room || invite.role !== 'host' || invite.sdpType !== 'offer') {
+      alert('Invite blob does not match this room.');
+      return;
+    }
+
+    const peerId = `host-${Date.now()}`;
+    const pc = newPeerConnection(peerId, false);
+    try {
+      await pc.setRemoteDescription({ type: 'offer', sdp: invite.sdp });
+    } catch (e) {
+      console.error(e);
+      alert('Failed to apply host offer.');
+      return;
+    }
+
+    $('makeAnswer').onclick = async () => {
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await waitIceComplete(pc);
+
+      const answerBlob = {
+        v: 1,
+        room,
+        role: 'guest',
+        sdpType: pc.localDescription.type,
+        sdp: pc.localDescription.sdp,
+      };
+      const encoded = deflateToB64Url(answerBlob);
+      const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}#answer=${encoded}`;
+      $('answerLink').value = link;
+      $('copyAnswer').onclick = () => { navigator.clipboard.writeText(link); };
+
+      // Render QR
+      $('qrAnswer').innerHTML = '';
+      QRCode.toCanvas(document.createElement('canvas'), link, { width: 240 }, (err, canvas) => {
+        if (!err) $('qrAnswer').appendChild(canvas);
+      });
+      $('guestAnswerBlock').classList.remove('hidden');
+    };
+
+    $('cancelGuest').onclick = () => {
+      try { pc.close(); } catch {}
+      connections.delete(peerId);
+      location.hash = '';
+      updatePills(roleText);
+    };
+  }
+
+  // ---------- Bootstrap ----------
+  loadInitial();
+
+  // room handling
+  if (!room) {
+    noRoomPane.classList.remove('hidden');
+    $('setRoom').onclick = () => {
+      const r = $('roomInput').value.trim();
+      if (!r) return;
+      const url = new URL(location.href);
+      url.searchParams.set('room', r);
+      url.hash = '';
+      location.href = url.toString();
+    };
+  } else {
+    // Determine host vs guest by fragment (#invite=...)
+    const frag = location.hash || '';
+    const inviteMatch = frag.match(/#invite=([A-Za-z0-9\-_]+)/);
+    if (inviteMatch) {
+      asGuestInit(inviteMatch[1]);
+    } else {
+      asHostInit();
+    }
+  }
+
+  // Keep pills accurate
+  updatePills(roleText);
+
+})();
+</script>
+</body>
+</html>
