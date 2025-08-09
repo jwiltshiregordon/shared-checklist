@@ -192,6 +192,8 @@
         try { pc.addTrack(track, stream); } catch {}
       });
 
+      console.log('Video stream enabled; starting QR scan for guest answer');
+
       const video = $('localVideo');
       const statusEl = $('scanStatus');
       const canvas = document.createElement('canvas');
@@ -211,7 +213,11 @@
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = window.jsQR(img.data, canvas.width, canvas.height);
+        if (code) {
+          console.debug('QR scan data:', code.data);
+        }
         if (code && code.data.includes('#answer=')) {
+          console.log('Answer QR detected');
           const m = code.data.match(/#answer=([A-Za-z0-9\-_]+)/);
           if (m) {
             statusEl.textContent = 'Answer detected!';
@@ -220,6 +226,7 @@
               if (answerObj.room === room && answerObj.role === 'guest' && answerObj.sdpType === 'answer') {
                 await pc.setRemoteDescription({ type: 'answer', sdp: answerObj.sdp });
                 updatePills(roleText);
+                console.log('Answer applied from QR');
                 statusEl.textContent = 'Answer applied!';
                 $('answerBlock').classList.add('hidden');
                 video.classList.add('hidden');
@@ -227,12 +234,15 @@
                 scanning = false;
                 return;
               } else {
+                console.warn('Scanned answer does not match room/role', answerObj);
                 statusEl.textContent = 'Invalid answer';
               }
             } catch (e) {
-              console.error(e);
+              console.error('Failed to apply scanned answer', e);
               statusEl.textContent = 'Failed to apply answer';
             }
+          } else {
+            console.warn('QR code contained #answer but pattern did not match');
           }
         }
         requestAnimationFrame(scan);
