@@ -158,9 +158,21 @@
   function renderQr(targetId, link) {
     const el = $(targetId);
     el.innerHTML = '';
-    QRCode.toCanvas(document.createElement('canvas'), link, { width: 240 }, (err, canvas) => {
-      if (!err) el.appendChild(canvas);
-    });
+    QRCode.toCanvas(
+      document.createElement('canvas'),
+      link,
+      { width: 240, errorCorrectionLevel: 'low' },
+      (err, canvas) => {
+        if (err) {
+          const msg = document.createElement('span');
+          msg.className = 'muted';
+          msg.textContent = 'Unable to render QR code; use copy instead.';
+          el.appendChild(msg);
+          return;
+        }
+        el.appendChild(canvas);
+      }
+    );
   }
 
   async function promptEnableVideo(pc) {
