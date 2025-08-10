@@ -2,68 +2,96 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Morse TX/RX – Minimal</title>
+  <title>Morse TX/RX – High Throughput</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root { font-family: system-ui, sans-serif; line-height: 1.4; }
-    body { max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { font-size: 1.4rem; margin-bottom: .5rem; }
-    section { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.45; }
+    body { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
+    section { border: 1px solid #e5e5e5; border-radius: 10px; padding: 1rem; margin: 1rem 0; }
     label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
     textarea { width: 100%; min-height: 5rem; }
-    button { padding: .5rem .8rem; margin-right: .5rem; }
     .row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
-    small { color:#555; }
-    .status { margin-top:.5rem; min-height: 1.2em; color:#333; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .small { font-size: .9rem; color:#555; }
+    button { padding:.5rem .8rem; }
+    input[type="range"] { width: 200px; vertical-align: middle; }
+    .kv { display:grid; grid-template-columns: 160px 1fr; gap:.25rem .75rem; }
+    .pill { display:inline-block; padding:.12rem .5rem; border:1px solid #ddd; border-radius:999px; font-size:.85rem; }
+    .status { min-height: 1.2em; }
   </style>
 </head>
 <body>
-  <h1>Morse Code – Minimal Transmit / Receive</h1>
-  <p><small>Defaults: tone 600 Hz, ~15 WPM. For microphone access use HTTPS or <span class="mono">localhost</span>.</small></p>
+<h1>Morse Code – Transmit / Receive (Throughput-Optimized)</h1>
+<p class="small">Defaults: 650 Hz, 28 WPM. Use HTTPS or <span class="mono">localhost</span> for microphone access.</p>
 
-  <section id="tx">
-    <h2>Transmit</h2>
-    <label for="txInput">Text to send</label>
-    <textarea id="txInput" placeholder="Type text here… e.g., CQ CQ DE TEST"></textarea>
-    <div class="row" style="margin-top:.5rem;">
-      <button id="sendBtn">Send</button>
-      <small id="txStatus" class="status"></small>
+<section id="tx">
+  <h2>Transmit</h2>
+  <div class="row">
+    <label>Text</label>
+  </div>
+  <textarea id="txInput" placeholder="Type text to send… e.g., CQ CQ DE TEST K"></textarea>
+  <div class="row" style="margin-top:.5rem;">
+    <button id="sendBtn">Send</button>
+    <button id="sendVVVBtn" title="Send short preamble to help RX lock speed/frequency">Send “VVV”</button>
+    <span class="small status" id="txStatus"></span>
+  </div>
+  <div class="kv small" style="margin-top:.5rem;">
+    <div>WPM (speed)</div>
+    <div>
+      <input type="range" id="wpm" min="10" max="45" step="1" value="28" />
+      <span class="mono" id="wpmVal">28</span>
     </div>
-  </section>
-
-  <section id="rx">
-    <h2>Receive</h2>
-    <div class="row">
-      <button id="listenBtn">Listen</button>
-      <button id="stopBtn" disabled>Stop</button>
-      <label for="thresh" style="margin-left:1rem;">RMS threshold</label>
-      <input type="range" id="thresh" min="0.005" max="0.08" step="0.001" value="0.02" />
-      <span class="mono" id="threshVal">0.020</span>
+    <div>Tone (Hz)</div>
+    <div>
+      <input type="range" id="tone" min="450" max="900" step="1" value="650" />
+      <span class="mono" id="toneVal">650</span>
     </div>
-    <label for="rxOutput" style="margin-top:.5rem;">Decoded output</label>
-    <textarea id="rxOutput" placeholder="Decoded text will appear here…" readonly></textarea>
-    <small id="rxStatus" class="status"></small>
-  </section>
+    <div>Volume</div>
+    <div>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.85" />
+      <span class="mono" id="volVal">0.85</span>
+    </div>
+  </div>
+</section>
 
-  <section>
-    <h2>Cheat Sheet (subset)</h2>
-    <pre class="mono" style="white-space: pre-wrap; margin:0;">
+<section id="rx">
+  <h2>Receive</h2>
+  <div class="row">
+    <button id="listenBtn">Listen</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <button id="clearBtn">Clear</button>
+    <label class="pill"><input type="checkbox" id="lockSpeed" /> Lock speed</label>
+    <label class="pill"><input type="checkbox" id="trackFreq" checked /> Track frequency</label>
+  </div>
+  <label for="rxOutput" style="margin-top:.5rem;">Decoded output</label>
+  <textarea id="rxOutput" placeholder="Decoded text will appear here…" readonly></textarea>
+  <div class="kv small" style="margin-top:.5rem;">
+    <div>Estimated WPM</div><div class="mono" id="estWpm">–</div>
+    <div>Unit (ms)</div><div class="mono" id="unitMs">–</div>
+    <div>Center F0 (Hz)</div><div class="mono" id="f0">–</div>
+    <div>SNR (approx)</div><div class="mono" id="snr">–</div>
+    <div>Status</div><div class="mono" id="rxStatus">Idle</div>
+  </div>
+</section>
+
+<section>
+  <h2>Cheat Sheet (subset)</h2>
+  <pre class="mono" style="white-space: pre-wrap; margin:0;">
 A .-   B -...   C -.-.   D -..   E .   F ..-.   G --.   H ....   I ..
 J .--- K -.-    L .-..   M --    N -.  O ---    P .--.  Q --.-   R .-.
 S ...  T -      U ..-    V ...-  W .-- X -..-   Y -.--  Z --..
 0 ----- 1 .---- 2 ..--- 3 ...-- 4 ....- 5 ..... 6 -.... 7 --... 8 ---.. 9 ----.
-    </pre>
-  </section>
+  </pre>
+</section>
 
 <script>
 (() => {
-  // ---------- Config (minimal, fixed) ----------
-  const WPM = 15;                      // words per minute (PARIS)
-  const UNIT_MS = 1200 / WPM;          // 1 unit (dot) duration in ms
-  const TONE_HZ = 2400;                 // transmit & target receive tone
-  const ATTACK_S = 0.005;              // small envelope to reduce clicks
-  const RELEASE_S = 0.005;
+  // ---------- Config & constants ----------
+  const DEFAULT_WPM = 28;
+  const DEFAULT_TONE = 650;
+  const ATTACK_S = 0.006;  // raised-cosine-ish edges to reduce clicks
+  const RELEASE_S = 0.006;
 
   // ---------- Morse tables ----------
   const MORSE = {
@@ -80,21 +108,38 @@ S ...  T -      U ..-    V ...-  W .-- X -..-   Y -.--  Z --..
   // ---------- DOM ----------
   const txInput  = document.getElementById('txInput');
   const sendBtn  = document.getElementById('sendBtn');
+  const sendVVVBtn = document.getElementById('sendVVVBtn');
   const txStatus = document.getElementById('txStatus');
+
+  const wpm      = document.getElementById('wpm');
+  const wpmVal   = document.getElementById('wpmVal');
+  const tone     = document.getElementById('tone');
+  const toneVal  = document.getElementById('toneVal');
+  const vol      = document.getElementById('vol');
+  const volVal   = document.getElementById('volVal');
 
   const listenBtn = document.getElementById('listenBtn');
   const stopBtn   = document.getElementById('stopBtn');
-  const thresh    = document.getElementById('thresh');
-  const threshVal = document.getElementById('threshVal');
+  const clearBtn  = document.getElementById('clearBtn');
+  const lockSpeed = document.getElementById('lockSpeed');
+  const trackFreq = document.getElementById('trackFreq');
+
   const rxOutput  = document.getElementById('rxOutput');
+  const estWpmEl  = document.getElementById('estWpm');
+  const unitMsEl  = document.getElementById('unitMs');
+  const f0El      = document.getElementById('f0');
+  const snrEl     = document.getElementById('snr');
   const rxStatus  = document.getElementById('rxStatus');
 
-  thresh.addEventListener('input', () => {
-    threshVal.textContent = Number(thresh.value).toFixed(3);
-  });
+  wpm.addEventListener('input', () => wpmVal.textContent = wpm.value);
+  tone.addEventListener('input', () => toneVal.textContent = tone.value);
+  vol.addEventListener('input', () => volVal.textContent = Number(vol.value).toFixed(2));
+  wpmVal.textContent = wpm.value;
+  toneVal.textContent = tone.value;
+  volVal.textContent = Number(vol.value).toFixed(2);
 
   // ---------- Audio (shared) ----------
-  let audioCtx;  // lazily created on first user gesture
+  let audioCtx;
   function getAudioCtx() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -103,212 +148,235 @@ S ...  T -      U ..-    V ...-  W .-- X -..-   Y -.--  Z --..
 
   // ---------- Transmit ----------
   sendBtn.addEventListener('click', async () => {
-    const text = txInput.value || '';
-    if (!text.trim()) {
-      txStatus.textContent = 'Nothing to send.';
-      return;
-    }
+    const text = (txInput.value || '').toUpperCase();
+    if (!text.trim()) { txStatus.textContent = 'Nothing to send.'; return; }
+    await safeTransmit(text);
+  });
+
+  sendVVVBtn.addEventListener('click', async () => {
+    await safeTransmit('VVV VVV');
+  });
+
+  async function safeTransmit(text) {
+    const ctx = getAudioCtx();
     sendBtn.disabled = true;
+    sendVVVBtn.disabled = true;
     txStatus.textContent = 'Transmitting…';
     try {
-      await transmit(text);
+      await transmit(ctx, text, Number(wpm.value), Number(tone.value), Number(vol.value));
       txStatus.textContent = 'Done.';
     } catch (e) {
       console.error(e);
       txStatus.textContent = 'Error during transmit (see console).';
     } finally {
       sendBtn.disabled = false;
+      sendVVVBtn.disabled = false;
     }
-  });
-
-  function scheduleTone(gain, when, onDurMs) {
-    const t0 = when;
-    const t1 = when + onDurMs/1000;
-    // Envelope
-    gain.gain.setValueAtTime(0.0, t0);
-    gain.gain.linearRampToValueAtTime(1.0, t0 + ATTACK_S);
-    gain.gain.setValueAtTime(1.0, t1 - RELEASE_S);
-    gain.gain.linearRampToValueAtTime(0.0, t1);
-    return t1; // returns end time (audio time, seconds)
   }
 
-  async function transmit(plainText) {
-    const ctx = getAudioCtx();
+  function scheduleRaisedCosine(gain, tStart, durMs) {
+    // Simple piecewise linear approximation to raised-cosine
+    const t0 = tStart, t1 = tStart + durMs/1000;
+    const steps = 6;
+    gain.gain.setValueAtTime(0, t0);
+    for (let k=1; k<=steps; k++) {
+      const frac = k/steps;
+      const y = 0.5 - 0.5 * Math.cos(Math.min(1, frac) * Math.PI);
+      gain.gain.linearRampToValueAtTime(y, t0 + ATTACK_S * frac);
+    }
+    gain.gain.setValueAtTime(1, Math.max(t0 + ATTACK_S, t1 - RELEASE_S));
+    for (let k=1; k<=steps; k++) {
+      const frac = k/steps;
+      const y = 1 - (0.5 - 0.5 * Math.cos(Math.min(1, frac) * Math.PI));
+      gain.gain.linearRampToValueAtTime(y, (t1 - RELEASE_S) + RELEASE_S * frac);
+    }
+    return t1;
+  }
+
+  async function transmit(ctx, plainText, wpm, freqHz, volume) {
+    const UNIT_MS = 1200 / wpm;
     const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.value = TONE_HZ;
+    osc.frequency.value = freqHz;
+
     const gain = ctx.createGain();
     gain.gain.value = 0.0;
 
-    osc.connect(gain).connect(ctx.destination);
+    const volNode = ctx.createGain();
+    volNode.gain.value = volume;
+
+    osc.connect(gain).connect(volNode).connect(ctx.destination);
     osc.start();
 
-    // Build schedule: sequence of [isOn, durationMs]
+    // Build the on/off schedule as [isOn, durationMs]
     const seq = [];
     const upper = plainText.toUpperCase();
 
     for (let i = 0; i < upper.length; i++) {
       const ch = upper[i];
-      if (ch === ' ') {
-        // Word gap: 7u of OFF
-        seq.push([0, 7*UNIT_MS]);
-        continue;
-      }
+      if (ch === ' ') { seq.push([0, 7*UNIT_MS]); continue; }
       const code = MORSE[ch];
-      if (!code) continue; // skip unsupported
-      // Elements with 1u intra-element OFF after each element
+      if (!code) continue;
       for (let j = 0; j < code.length; j++) {
-        const dur = code[j] === '.' ? 1*UNIT_MS : 3*UNIT_MS;
+        const dur = (code[j] === '.') ? 1*UNIT_MS : 3*UNIT_MS;
         seq.push([1, dur]);
-        seq.push([0, 1*UNIT_MS]); // intra-element gap
+        seq.push([0, 1*UNIT_MS]);
       }
-      // Replace last intra-element 1u gap with letter gap 3u (add +2u)
-      if (seq.length && seq[seq.length-1][0] === 0) {
-        seq[seq.length-1][1] += 2*UNIT_MS;
-      }
+      // replace last intra-element gap (1u) with letter gap (3u)
+      if (seq.length && seq[seq.length-1][0] === 0) seq[seq.length-1][1] += 2*UNIT_MS;
     }
 
-    // Time-based scheduling on AudioContext clock
-    let when = ctx.currentTime + 0.05; // small lead-in
+    // Schedule on WebAudio clock
+    let when = ctx.currentTime + 0.05;
     for (const [isOn, durMs] of seq) {
-      if (isOn) {
-        when = scheduleTone(gain, when, durMs);
-      } else {
-        when += durMs / 1000;
-      }
+      if (isOn) when = scheduleRaisedCosine(gain, when, durMs);
+      else when += durMs / 1000;
     }
-
-    // Stop oscillator after sequence
     const stopAt = when + 0.05;
     osc.stop(stopAt);
-    // Wait until finished (best-effort)
     await new Promise(res => setTimeout(res, (stopAt - ctx.currentTime) * 1000 + 50));
   }
 
-  // ---------- Receive ----------
-  let rxTimer = null;
-  let mediaStream = null;
+  // ---------- Receive (AudioWorklet + Goertzel) ----------
+  // Worklet code as a string to keep single-file
+  const workletCode = `
+  class GoertzelDetector extends AudioWorkletProcessor {
+    constructor(options) {
+      super();
+      const p = options?.processorOptions || {};
+      this.sr = sampleRate;
+      this.f0 = p.f0 ?? 650;
+      this.delta = p.delta ?? 10;
+      this.track = !!p.track;
+      this.M = 64; // step size for updates (latency ~M/sr)
+      this.resetBins();
 
-  listenBtn.addEventListener('click', async () => {
-    listenBtn.disabled = true;
-    rxStatus.textContent = 'Starting microphone…';
-    try {
-      await startListening();
-      rxStatus.textContent = 'Listening. Speak/play a 600 Hz keyed tone.';
-      stopBtn.disabled = false;
-    } catch (e) {
-      console.error(e);
-      rxStatus.textContent = 'Mic error (see console).';
-      listenBtn.disabled = false;
+      // Envelope & gating
+      this.env = 0;
+      this.aEnv = Math.exp(-1 / (0.010 * this.sr)); // ~10ms LP
+      this.noise = 1e-6;
+      this.peak  = 1e-5;
+      this.aNoise = Math.exp(-1 / (0.200 * this.sr));
+      this.aPeak  = Math.exp(-1 / (0.200 * this.sr));
+      this.stateOn = false;
+      this.samplesSinceEdge = 0;
+
+      // Telemetry pacing
+      this.teleSamples = 0;
+      this.teleEvery = Math.floor(0.1 * this.sr); // 100ms
+      this._enter = 0; this._exit = 0;
+
+      this.port.onmessage = (e) => {
+        const d = e.data || {};
+        if (d.cmd === 'setFreq') { this.f0 = d.f0; this.resetBins(); }
+        if (d.cmd === 'track') { this.track = !!d.on; }
+      };
     }
-  });
 
-  stopBtn.addEventListener('click', () => {
-    stopListening();
-    rxStatus.textContent = 'Stopped.';
-  });
+    makeBin(f) {
+      const w = 2 * Math.PI * f / this.sr;
+      return { f, cos: 2 * Math.cos(w), s1: 0, s2: 0 };
+    }
+    resetBins() {
+      this.binC = this.makeBin(this.f0);
+      this.binL = this.makeBin(this.f0 - this.delta);
+      this.binR = this.makeBin(this.f0 + this.delta);
+    }
+    stepBin(bin, x) {
+      const s0 = x + bin.cos * bin.s1 - bin.s2;
+      bin.s2 = bin.s1; bin.s1 = s0;
+    }
+    mag2(bin) {
+      return bin.s1*bin.s1 + bin.s2*bin.s2 - bin.cos*bin.s1*bin.s2;
+    }
+    clearBins() {
+      this.binC.s1 = this.binC.s2 = 0;
+      this.binL.s1 = this.binL.s2 = 0;
+      this.binR.s1 = this.binR.s2 = 0;
+    }
+
+    process(inputs) {
+      const ch = inputs[0]?.[0];
+      if (!ch) return true;
+      const N = ch.length;
+
+      for (let i=0;i<N;i++) {
+        const x = ch[i];
+        this.stepBin(this.binC, x);
+        this.stepBin(this.binL, x);
+        this.stepBin(this.binR, x);
+        this.samplesSinceEdge++;
+        this.teleSamples++;
+
+        if (((i+1) % this.M) === 0) {
+          const pC = this.mag2(this.binC);
+          const pL = this.mag2(this.binL);
+          const pR = this.mag2(this.binR);
+          let p = pC, which = 0;
+          if (this.track) {
+            if (pL > p) { p = pL; which = -1; }
+            if (pR > p) { p = pR; which = +1; }
+            // nudge f0 slowly
+            if (which !== 0) this.f0 += 0.4 * which;
+            if ((i % (this.M*8)) === 0) this.resetBins();
+          }
+          this.clearBins();
+
+          // Envelope on sqrt power
+          const amp = Math.sqrt(Math.max(0, p));
+          this.env = this.env * this.aEnv + amp * (1 - this.aEnv);
+
+          // Track noise/peak
+          if (!this.stateOn) this.noise = this.aNoise * this.noise + (1 - this.aNoise) * this.env;
+          else               this.peak  = this.aPeak  * this.peak  + (1 - this.aPeak)  * this.env;
+          const span = Math.max(1e-6, this.peak - this.noise);
+          const enter = this.noise + 0.60 * span;
+          const exit  = this.noise + 0.35 * span;
+          this._enter = enter; this._exit = exit;
+
+          // Gate
+          const wantOn = this.env >= (this.stateOn ? exit : enter);
+          if (wantOn !== this.stateOn) {
+            // Emit edge with duration spent in the PREVIOUS state
+            this.port.postMessage({ type:'EDGE', on: wantOn, span: this.samplesSinceEdge });
+            this.samplesSinceEdge = 0;
+            this.stateOn = wantOn;
+            if (this.stateOn) this.peak = this.env; else this.noise = this.env;
+          }
+
+          // Telemetry every ~100 ms
+          if (this.teleSamples >= this.teleEvery) {
+            const snr = span > 0 ? (span / Math.max(1e-6, this.noise)) : 0;
+            this.port.postMessage({ type:'TEL', f0: this.f0, snr, enter, exit, env: this.env });
+            this.teleSamples = 0;
+          }
+        }
+      }
+      return true;
+    }
+  }
+  registerProcessor('goertzel-detector', GoertzelDetector);
+  `;
+
+  let mediaStream = null;
+  let workletNode = null;
+  let rxRunning = false;
+
+  listenBtn.addEventListener('click', () => startListening().catch(err => {
+    console.error(err);
+    rxStatus.textContent = 'Mic error (see console).';
+  }));
+  stopBtn.addEventListener('click', stopListening);
+  clearBtn.addEventListener('click', () => { rxOutput.value = ''; });
 
   async function startListening() {
+    if (rxRunning) return;
     const ctx = getAudioCtx();
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    });
-
-    const src = ctx.createMediaStreamSource(mediaStream);
-
-    // Minimal band-pass around 600 Hz to help detection (optional but helpful)
-    const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = TONE_HZ;
-    bp.Q.value = 20;
-
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.05; // keep it snappy
-
-    src.connect(bp).connect(analyser);
-
-    // Decoder state
-    let stateOn = false;
-    let lastChange = performance.now();
-    let symbolBuf = ''; // collects '.' and '-' for one letter
-    const out = () => rxOutput.value;
-    const setOut = s => rxOutput.value = s;
-
-    // Poll RMS and threshold into on/off
-    const buf = new Float32Array(analyser.fftSize);
-
-    const tick = () => {
-      analyser.getFloatTimeDomainData(buf);
-      // RMS
-      let sum = 0;
-      for (let i = 0; i < buf.length; i++) { const v = buf[i]; sum += v*v; }
-      const rms = Math.sqrt(sum / buf.length);
-      // Update tiny status
-      rxStatus.textContent = `RMS=${rms.toFixed(3)}  |  threshold=${Number(thresh.value).toFixed(3)}`;
-
-      const now = performance.now();
-      const on = rms >= Number(thresh.value);
-
-      if (on !== stateOn) {
-        const spanMs = now - lastChange;
-        lastChange = now;
-
-        if (stateOn) {
-          // was ON, now OFF: classify dot/dash
-          if (spanMs < 2 * UNIT_MS) symbolBuf += '.';
-          else symbolBuf += '-';
-        } else {
-          // was OFF, now ON: classify gap
-          if (spanMs >= 6 * UNIT_MS) {
-            // word gap: flush letter (if any), then space
-            flushLetter();
-            setOut(out() + ' ');
-          } else if (spanMs >= 2 * UNIT_MS) {
-            // letter gap
-            flushLetter();
-          }
-        }
-        stateOn = on;
-      } else {
-        // Optional: if we've been OFF a long time, flush letter
-        if (!stateOn) {
-          const offDur = now - lastChange;
-          if (symbolBuf && offDur >= 6 * UNIT_MS) {
-            flushLetter();
-            setOut(out() + ' ');
-            lastChange = now; // avoid repeated spaces
-          }
-        }
-      }
-    };
-
-    function flushLetter() {
-      if (!symbolBuf) return;
-      const ch = REV.get(symbolBuf) || '?';
-      setOut(out() + ch);
-      symbolBuf = '';
+    rxStatus.textContent = 'Starting microphone…';
+    // Load worklet (once)
+    if (!ctx.audioWorklet) {
+      rxStatus.textContent = 'AudioWorklet not supported in this browser.';
+      return;
     }
-
-    // Start polling loop
-    if (rxTimer) clearInterval(rxTimer);
-    rxTimer = setInterval(tick, 10);
-  }
-
-  function stopListening() {
-    stopBtn.disabled = true;
-    listenBtn.disabled = false;
-    if (rxTimer) { clearInterval(rxTimer); rxTimer = null; }
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(t => t.stop());
-      mediaStream = null;
-    }
-  }
-})();
-</script>
-</body>
-</html>
+    const blob = new Blob([workletCode], { type: 'text/javascript' });
+    const url
