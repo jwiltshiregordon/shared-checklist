@@ -1,56 +1,314 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Audio Communication Demo</title>
+  <title>Morse TX/RX – Minimal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: sans-serif; margin: 2rem; }
-    textarea { width: 100%; height: 4rem; }
-    pre { background: #f0f0f0; padding: 1rem; }
+    :root { font-family: system-ui, sans-serif; line-height: 1.4; }
+    body { max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; margin-bottom: .5rem; }
+    section { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+    label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
+    textarea { width: 100%; min-height: 5rem; }
+    button { padding: .5rem .8rem; margin-right: .5rem; }
+    .row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+    small { color:#555; }
+    .status { margin-top:.5rem; min-height: 1.2em; color:#333; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   </style>
 </head>
 <body>
-  <h1>Audio Communication Demo</h1>
-  <p>Type a message and send it over sound waves. Open this page on another device to receive the message.</p>
-  <textarea id="message" placeholder="Type a message..."></textarea><br />
-  <button id="send">Send</button>
-  <h2>Received messages</h2>
-  <pre id="log"></pre>
+  <h1>Morse Code – Minimal Transmit / Receive</h1>
+  <p><small>Defaults: tone 600 Hz, ~15 WPM. For microphone access use HTTPS or <span class="mono">localhost</span>.</small></p>
 
-  <script>
-    // Provide legacy webkitAudioContext alias for older libraries
-    window.AudioContext = window.AudioContext || window.webkitAudioContext;
-    window.webkitAudioContext = window.webkitAudioContext || window.AudioContext;
-  </script>
-  <script src="https://cdn.jsdelivr.net/gh/borismus/sonicnet.js/lib/build/sonicnet.js"></script>
-  <script>
-    // Encode a string into hexadecimal so it fits the limited alphabet
-    function stringToHex(str) {
-      const bytes = new TextEncoder().encode(str);
-      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  <section id="tx">
+    <h2>Transmit</h2>
+    <label for="txInput">Text to send</label>
+    <textarea id="txInput" placeholder="Type text here… e.g., CQ CQ DE TEST"></textarea>
+    <div class="row" style="margin-top:.5rem;">
+      <button id="sendBtn">Send</button>
+      <small id="txStatus" class="status"></small>
+    </div>
+  </section>
+
+  <section id="rx">
+    <h2>Receive</h2>
+    <div class="row">
+      <button id="listenBtn">Listen</button>
+      <button id="stopBtn" disabled>Stop</button>
+      <label for="thresh" style="margin-left:1rem;">RMS threshold</label>
+      <input type="range" id="thresh" min="0.005" max="0.08" step="0.001" value="0.02" />
+      <span class="mono" id="threshVal">0.020</span>
+    </div>
+    <label for="rxOutput" style="margin-top:.5rem;">Decoded output</label>
+    <textarea id="rxOutput" placeholder="Decoded text will appear here…" readonly></textarea>
+    <small id="rxStatus" class="status"></small>
+  </section>
+
+  <section>
+    <h2>Cheat Sheet (subset)</h2>
+    <pre class="mono" style="white-space: pre-wrap; margin:0;">
+A .-   B -...   C -.-.   D -..   E .   F ..-.   G --.   H ....   I ..
+J .--- K -.-    L .-..   M --    N -.  O ---    P .--.  Q --.-   R .-.
+S ...  T -      U ..-    V ...-  W .-- X -..-   Y -.--  Z --..
+0 ----- 1 .---- 2 ..--- 3 ...-- 4 ....- 5 ..... 6 -.... 7 --... 8 ---.. 9 ----.
+    </pre>
+  </section>
+
+<script>
+(() => {
+  // ---------- Config (minimal, fixed) ----------
+  const WPM = 15;                      // words per minute (PARIS)
+  const UNIT_MS = 1200 / WPM;          // 1 unit (dot) duration in ms
+  const TONE_HZ = 600;                 // transmit & target receive tone
+  const ATTACK_S = 0.005;              // small envelope to reduce clicks
+  const RELEASE_S = 0.005;
+
+  // ---------- Morse tables ----------
+  const MORSE = {
+    A: ".-",   B: "-...", C: "-.-.", D: "-..",  E: ".",    F: "..-.",
+    G: "--.",  H: "....", I: "..",   J: ".---", K: "-.-",  L: ".-..",
+    M: "--",   N: "-.",   O: "---",  P: ".--.", Q: "--.-", R: ".-.",
+    S: "...",  T: "-",    U: "..-",  V: "...-", W: ".--",  X: "-..-",
+    Y: "-.--", Z: "--..",
+    0: "-----", 1: ".----", 2: "..---", 3: "...--", 4: "....-",
+    5: ".....", 6: "-....", 7: "--...", 8: "---..", 9: "----."
+  };
+  const REV = new Map(Object.entries(MORSE).map(([k,v]) => [v, k]));
+
+  // ---------- DOM ----------
+  const txInput  = document.getElementById('txInput');
+  const sendBtn  = document.getElementById('sendBtn');
+  const txStatus = document.getElementById('txStatus');
+
+  const listenBtn = document.getElementById('listenBtn');
+  const stopBtn   = document.getElementById('stopBtn');
+  const thresh    = document.getElementById('thresh');
+  const threshVal = document.getElementById('threshVal');
+  const rxOutput  = document.getElementById('rxOutput');
+  const rxStatus  = document.getElementById('rxStatus');
+
+  thresh.addEventListener('input', () => {
+    threshVal.textContent = Number(thresh.value).toFixed(3);
+  });
+
+  // ---------- Audio (shared) ----------
+  let audioCtx;  // lazily created on first user gesture
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  // ---------- Transmit ----------
+  sendBtn.addEventListener('click', async () => {
+    const text = txInput.value || '';
+    if (!text.trim()) {
+      txStatus.textContent = 'Nothing to send.';
+      return;
     }
-    // Decode a hexadecimal string back into a normal string
-    function hexToString(hex) {
-      const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(h => parseInt(h, 16)));
-      return new TextDecoder().decode(bytes);
+    sendBtn.disabled = true;
+    txStatus.textContent = 'Transmitting…';
+    try {
+      await transmit(text);
+      txStatus.textContent = 'Done.';
+    } catch (e) {
+      console.error(e);
+      txStatus.textContent = 'Error during transmit (see console).';
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  function scheduleTone(gain, when, onDurMs) {
+    const t0 = when;
+    const t1 = when + onDurMs/1000;
+    // Envelope
+    gain.gain.setValueAtTime(0.0, t0);
+    gain.gain.linearRampToValueAtTime(1.0, t0 + ATTACK_S);
+    gain.gain.setValueAtTime(1.0, t1 - RELEASE_S);
+    gain.gain.linearRampToValueAtTime(0.0, t1);
+    return t1; // returns end time (audio time, seconds)
+  }
+
+  async function transmit(plainText) {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = TONE_HZ;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0;
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+
+    // Build schedule: sequence of [isOn, durationMs]
+    const seq = [];
+    const upper = plainText.toUpperCase();
+
+    for (let i = 0; i < upper.length; i++) {
+      const ch = upper[i];
+      if (ch === ' ') {
+        // Word gap: 7u of OFF
+        seq.push([0, 7*UNIT_MS]);
+        continue;
+      }
+      const code = MORSE[ch];
+      if (!code) continue; // skip unsupported
+      // Elements with 1u intra-element OFF after each element
+      for (let j = 0; j < code.length; j++) {
+        const dur = code[j] === '.' ? 1*UNIT_MS : 3*UNIT_MS;
+        seq.push([1, dur]);
+        seq.push([0, 1*UNIT_MS]); // intra-element gap
+      }
+      // Replace last intra-element 1u gap with letter gap 3u (add +2u)
+      if (seq.length && seq[seq.length-1][0] === 0) {
+        seq[seq.length-1][1] += 2*UNIT_MS;
+      }
     }
 
-    const ALPHABET = '0123456789abcdef';
-    const socket = new SonicSocket({alphabet: ALPHABET, charDuration: 0.2});
-    const server = new SonicServer({alphabet: ALPHABET});
+    // Time-based scheduling on AudioContext clock
+    let when = ctx.currentTime + 0.05; // small lead-in
+    for (const [isOn, durMs] of seq) {
+      if (isOn) {
+        when = scheduleTone(gain, when, durMs);
+      } else {
+        when += durMs / 1000;
+      }
+    }
 
-    document.getElementById('send').addEventListener('click', () => {
-      const text = document.getElementById('message').value;
-      const hex = stringToHex(text);
-      socket.send(hex);
+    // Stop oscillator after sequence
+    const stopAt = when + 0.05;
+    osc.stop(stopAt);
+    // Wait until finished (best-effort)
+    await new Promise(res => setTimeout(res, (stopAt - ctx.currentTime) * 1000 + 50));
+  }
+
+  // ---------- Receive ----------
+  let rxTimer = null;
+  let mediaStream = null;
+
+  listenBtn.addEventListener('click', async () => {
+    listenBtn.disabled = true;
+    rxStatus.textContent = 'Starting microphone…';
+    try {
+      await startListening();
+      rxStatus.textContent = 'Listening. Speak/play a 600 Hz keyed tone.';
+      stopBtn.disabled = false;
+    } catch (e) {
+      console.error(e);
+      rxStatus.textContent = 'Mic error (see console).';
+      listenBtn.disabled = false;
+    }
+  });
+
+  stopBtn.addEventListener('click', () => {
+    stopListening();
+    rxStatus.textContent = 'Stopped.';
+  });
+
+  async function startListening() {
+    const ctx = getAudioCtx();
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
     });
 
-    const log = document.getElementById('log');
-    server.on('message', msg => {
-      const text = hexToString(msg);
-      log.textContent += text + '\n';
-    });
-    server.start();
-  </script>
+    const src = ctx.createMediaStreamSource(mediaStream);
+
+    // Minimal band-pass around 600 Hz to help detection (optional but helpful)
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = TONE_HZ;
+    bp.Q.value = 20;
+
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.05; // keep it snappy
+
+    src.connect(bp).connect(analyser);
+
+    // Decoder state
+    let stateOn = false;
+    let lastChange = performance.now();
+    let symbolBuf = ''; // collects '.' and '-' for one letter
+    const out = () => rxOutput.value;
+    const setOut = s => rxOutput.value = s;
+
+    // Poll RMS and threshold into on/off
+    const buf = new Float32Array(analyser.fftSize);
+
+    const tick = () => {
+      analyser.getFloatTimeDomainData(buf);
+      // RMS
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = buf[i]; sum += v*v; }
+      const rms = Math.sqrt(sum / buf.length);
+      // Update tiny status
+      rxStatus.textContent = `RMS=${rms.toFixed(3)}  |  threshold=${Number(thresh.value).toFixed(3)}`;
+
+      const now = performance.now();
+      const on = rms >= Number(thresh.value);
+
+      if (on !== stateOn) {
+        const spanMs = now - lastChange;
+        lastChange = now;
+
+        if (stateOn) {
+          // was ON, now OFF: classify dot/dash
+          if (spanMs < 2 * UNIT_MS) symbolBuf += '.';
+          else symbolBuf += '-';
+        } else {
+          // was OFF, now ON: classify gap
+          if (spanMs >= 6 * UNIT_MS) {
+            // word gap: flush letter (if any), then space
+            flushLetter();
+            setOut(out() + ' ');
+          } else if (spanMs >= 2 * UNIT_MS) {
+            // letter gap
+            flushLetter();
+          }
+        }
+        stateOn = on;
+      } else {
+        // Optional: if we've been OFF a long time, flush letter
+        if (!stateOn) {
+          const offDur = now - lastChange;
+          if (symbolBuf && offDur >= 6 * UNIT_MS) {
+            flushLetter();
+            setOut(out() + ' ');
+            lastChange = now; // avoid repeated spaces
+          }
+        }
+      }
+    };
+
+    function flushLetter() {
+      if (!symbolBuf) return;
+      const ch = REV.get(symbolBuf) || '?';
+      setOut(out() + ch);
+      symbolBuf = '';
+    }
+
+    // Start polling loop
+    if (rxTimer) clearInterval(rxTimer);
+    rxTimer = setInterval(tick, 10);
+  }
+
+  function stopListening() {
+    stopBtn.disabled = true;
+    listenBtn.disabled = false;
+    if (rxTimer) { clearInterval(rxTimer); rxTimer = null; }
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+  }
+})();
+</script>
 </body>
 </html>
