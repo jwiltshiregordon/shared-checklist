@@ -17,6 +17,11 @@
   <h2>Received messages</h2>
   <pre id="log"></pre>
 
+  <script>
+    // Provide legacy webkitAudioContext alias for older libraries
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    window.webkitAudioContext = window.webkitAudioContext || window.AudioContext;
+  </script>
   <script src="https://cdn.jsdelivr.net/gh/borismus/sonicnet.js/lib/build/sonicnet.js"></script>
   <script>
     // Encode a string into hexadecimal so it fits the limited alphabet
