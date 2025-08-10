@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Audio Communication Demo</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    textarea { width: 100%; height: 4rem; }
+    pre { background: #f0f0f0; padding: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Audio Communication Demo</h1>
+  <p>Type a message and send it over sound waves. Open this page on another device to receive the message.</p>
+  <textarea id="message" placeholder="Type a message..."></textarea><br />
+  <button id="send">Send</button>
+  <h2>Received messages</h2>
+  <pre id="log"></pre>
+
+  <script src="https://cdn.jsdelivr.net/gh/borismus/sonicnet.js/lib/build/sonicnet.js"></script>
+  <script>
+    // Encode a string into hexadecimal so it fits the limited alphabet
+    function stringToHex(str) {
+      const bytes = new TextEncoder().encode(str);
+      return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // Decode a hexadecimal string back into a normal string
+    function hexToString(hex) {
+      const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(h => parseInt(h, 16)));
+      return new TextDecoder().decode(bytes);
+    }
+
+    const ALPHABET = '0123456789abcdef';
+    const socket = new SonicSocket({alphabet: ALPHABET, charDuration: 0.2});
+    const server = new SonicServer({alphabet: ALPHABET});
+
+    document.getElementById('send').addEventListener('click', () => {
+      const text = document.getElementById('message').value;
+      const hex = stringToHex(text);
+      socket.send(hex);
+    });
+
+    const log = document.getElementById('log');
+    server.on('message', msg => {
+      const text = hexToString(msg);
+      log.textContent += text + '\n';
+    });
+    server.start();
+  </script>
+</body>
+</html>
