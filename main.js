@@ -24,7 +24,6 @@ import { MORSE, REV } from "./morse.js";
         const listenBtn = document.getElementById("listenBtn");
         const stopBtn = document.getElementById("stopBtn");
         const clearBtn = document.getElementById("clearBtn");
-        const lockSpeed = document.getElementById("lockSpeed");
         const trackFreq = document.getElementById("trackFreq");
 
         const rxOutput = document.getElementById("rxOutput");
@@ -34,7 +33,11 @@ import { MORSE, REV } from "./morse.js";
         const snrEl = document.getElementById("snr");
         const rxStatus = document.getElementById("rxStatus");
 
-        wpm.addEventListener("input", () => (wpmVal.textContent = wpm.value));
+        wpm.addEventListener("input", () => {
+          wpmVal.textContent = wpm.value;
+          updateUnitDisplay();
+          updateUnitSamples();
+        });
         tone.addEventListener("input", () => {
           toneVal.textContent = tone.value;
           if (workletNode)
@@ -50,6 +53,7 @@ import { MORSE, REV } from "./morse.js";
         wpmVal.textContent = wpm.value;
         toneVal.textContent = tone.value;
         volVal.textContent = Number(vol.value).toFixed(2);
+        updateUnitDisplay();
 
         // ---------- Audio (shared) ----------
         let audioCtx;
@@ -226,8 +230,8 @@ import { MORSE, REV } from "./morse.js";
           listenBtn.disabled = true;
           stopBtn.disabled = false;
           rxStatus.textContent = "Listening…";
-          unitSamples = 0;
           symbolBuf = "";
+          updateUnitSamples();
           updateUnitDisplay();
         }
 
@@ -253,12 +257,8 @@ import { MORSE, REV } from "./morse.js";
         }
 
         function processTone(span) {
-          if (unitSamples === 0) unitSamples = span;
-          else if (!lockSpeed.checked && span < 2.5 * unitSamples)
-            unitSamples = 0.8 * unitSamples + 0.2 * span;
           const sym = span > 2 * unitSamples ? "-" : ".";
           symbolBuf += sym;
-          updateUnitDisplay();
         }
 
         function processGap(span) {
@@ -284,14 +284,15 @@ import { MORSE, REV } from "./morse.js";
           snrEl.textContent = d.snr.toFixed(1);
         }
 
+        function updateUnitSamples() {
+          if (!rxSampleRate) return;
+          unitSamples = (rxSampleRate * 1.2) / Number(wpm.value);
+        }
+
         function updateUnitDisplay() {
-          if (!unitSamples) {
-            estWpmEl.textContent = "–";
-            unitMsEl.textContent = "–";
-            return;
-          }
-          const unitMs = (unitSamples * 1000) / rxSampleRate;
+          const w = Number(wpm.value);
+          const unitMs = 1200 / w;
+          estWpmEl.textContent = w.toFixed(1);
           unitMsEl.textContent = unitMs.toFixed(1);
-          estWpmEl.textContent = (1200 / unitMs).toFixed(1);
         }
       })();
