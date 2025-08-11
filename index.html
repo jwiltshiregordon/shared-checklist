@@ -68,6 +68,17 @@
       .status {
         min-height: 1.2em;
       }
+      .tone-indicator {
+        display: inline-block;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        background: #ccc;
+        vertical-align: middle;
+      }
+      .tone-indicator.on {
+        background: #0c0;
+      }
     </style>
   </head>
   <body>
@@ -157,6 +168,8 @@
         <div class="mono" id="snr">–</div>
         <div>Status</div>
         <div class="mono" id="rxStatus">Idle</div>
+        <div>Tone</div>
+        <div><span id="toneIndicator" class="tone-indicator"></span></div>
       </div>
     </section>
 
