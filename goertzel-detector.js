@@ -11,11 +11,13 @@ class GoertzelDetector extends AudioWorkletProcessor {
 
     // Envelope & gating
     this.env = 0;
-    this.aEnv = Math.exp(-1 / (0.010 * this.sr)); // ~10ms LP
+    // Shorter envelope window so gating reacts quickly to tone edges
+    this.aEnv = Math.exp(-1 / (0.005 * this.sr)); // ~5ms LP
     this.noise = 1e-6;
     this.peak = 1e-5;
-    this.aNoise = Math.exp(-1 / (0.200 * this.sr));
-    this.aPeak = Math.exp(-1 / (0.200 * this.sr));
+    // Track noise and peak over a shorter ~50ms window
+    this.aNoise = Math.exp(-1 / (0.050 * this.sr));
+    this.aPeak = Math.exp(-1 / (0.050 * this.sr));
     this.stateOn = false;
     this.samplesSinceEdge = 0;
 
