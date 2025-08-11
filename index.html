@@ -369,14 +369,19 @@ S ...  T -      U ..-    V ...-  W .-- X -..-   Y -.--  Z --..
   stopBtn.addEventListener('click', stopListening);
   clearBtn.addEventListener('click', () => { rxOutput.value = ''; });
 
+  // The receive logic was truncated in this snapshot, which left the script
+  // unfinished and prevented the transmit button from working. Provide simple
+  // placeholders so that the page parses and the transmit functionality is
+  // usable.
   async function startListening() {
-    if (rxRunning) return;
-    const ctx = getAudioCtx();
-    rxStatus.textContent = 'Starting microphone…';
-    // Load worklet (once)
-    if (!ctx.audioWorklet) {
-      rxStatus.textContent = 'AudioWorklet not supported in this browser.';
-      return;
-    }
-    const blob = new Blob([workletCode], { type: 'text/javascript' });
-    const url
+    rxStatus.textContent = 'Receive not available in this build.';
+  }
+
+  function stopListening() {
+    rxStatus.textContent = 'Idle';
+  }
+
+})();
+</script>
+</body>
+</html>
