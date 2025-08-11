@@ -93,7 +93,10 @@ class GoertzelDetector extends AudioWorkletProcessor {
             which = +1;
           }
           // nudge f0 slowly
-          if (which !== 0) this.f0 += 0.4 * which;
+          if (which !== 0) {
+            this.f0 += 0.4 * which;
+            if (this.f0 < 0) this.f0 = 0;
+          }
           if ((i % (this.M * 8)) === 0) this.resetBins();
         }
         this.clearBins();

@@ -35,10 +35,14 @@ import { MORSE, REV } from "./morse.js";
         const rxStatus = document.getElementById("rxStatus");
 
         wpm.addEventListener("input", () => (wpmVal.textContent = wpm.value));
-        tone.addEventListener(
-          "input",
-          () => (toneVal.textContent = tone.value)
-        );
+        tone.addEventListener("input", () => {
+          toneVal.textContent = tone.value;
+          if (workletNode)
+            workletNode.port.postMessage({
+              cmd: "setFreq",
+              f0: Number(tone.value),
+            });
+        });
         vol.addEventListener(
           "input",
           () => (volVal.textContent = Number(vol.value).toFixed(2))
@@ -205,7 +209,10 @@ import { MORSE, REV } from "./morse.js";
           });
           const src = ctx.createMediaStreamSource(mediaStream);
           workletNode = new AudioWorkletNode(ctx, "goertzel-detector", {
-            processorOptions: { f0: DEFAULT_TONE, track: trackFreq.checked },
+            processorOptions: {
+              f0: Number(tone.value),
+              track: trackFreq.checked,
+            },
           });
           workletNode.port.onmessage = (e) => {
             const d = e.data || {};
