@@ -1,245 +1,389 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>Morse TX/RX – High Throughput</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.45; }
-    body { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-    h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
-    section { border: 1px solid #e5e5e5; border-radius: 10px; padding: 1rem; margin: 1rem 0; }
-    label { display:block; margin:.5rem 0 .25rem; font-weight:600; }
-    textarea { width: 100%; min-height: 5rem; }
-    .row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    .small { font-size: .9rem; color:#555; }
-    button { padding:.5rem .8rem; }
-    input[type="range"] { width: 200px; vertical-align: middle; }
-    .kv { display:grid; grid-template-columns: 160px 1fr; gap:.25rem .75rem; }
-    .pill { display:inline-block; padding:.12rem .5rem; border:1px solid #ddd; border-radius:999px; font-size:.85rem; }
-    .status { min-height: 1.2em; }
-  </style>
-</head>
-<body>
-<h1>Morse Code – Transmit / Receive (Throughput-Optimized)</h1>
-<p class="small">Defaults: 650 Hz, 28 WPM. Use HTTPS or <span class="mono">localhost</span> for microphone access.</p>
+  <head>
+    <meta charset="utf-8" />
+    <title>Morse TX/RX – High Throughput</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        line-height: 1.45;
+      }
+      body {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin: 0 0 0.5rem;
+      }
+      section {
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+      }
+      label {
+        display: block;
+        margin: 0.5rem 0 0.25rem;
+        font-weight: 600;
+      }
+      textarea {
+        width: 100%;
+        min-height: 5rem;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .small {
+        font-size: 0.9rem;
+        color: #555;
+      }
+      button {
+        padding: 0.5rem 0.8rem;
+      }
+      input[type="range"] {
+        width: 200px;
+        vertical-align: middle;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 0.25rem 0.75rem;
+      }
+      .pill {
+        display: inline-block;
+        padding: 0.12rem 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
+      .status {
+        min-height: 1.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Morse Code – Transmit / Receive (Throughput-Optimized)</h1>
+    <p class="small">
+      Defaults: 650 Hz, 28 WPM. Use HTTPS or
+      <span class="mono">localhost</span> for microphone access.
+    </p>
 
-<section id="tx">
-  <h2>Transmit</h2>
-  <div class="row">
-    <label>Text</label>
-  </div>
-  <textarea id="txInput" placeholder="Type text to send… e.g., CQ CQ DE TEST K"></textarea>
-  <div class="row" style="margin-top:.5rem;">
-    <button id="sendBtn">Send</button>
-    <button id="sendVVVBtn" title="Send short preamble to help RX lock speed/frequency">Send “VVV”</button>
-    <span class="small status" id="txStatus"></span>
-  </div>
-  <div class="kv small" style="margin-top:.5rem;">
-    <div>WPM (speed)</div>
-    <div>
-      <input type="range" id="wpm" min="10" max="45" step="1" value="28" />
-      <span class="mono" id="wpmVal">28</span>
-    </div>
-    <div>Tone (Hz)</div>
-    <div>
-      <input type="range" id="tone" min="450" max="900" step="1" value="650" />
-      <span class="mono" id="toneVal">650</span>
-    </div>
-    <div>Volume</div>
-    <div>
-      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.85" />
-      <span class="mono" id="volVal">0.85</span>
-    </div>
-  </div>
-</section>
+    <section id="tx">
+      <h2>Transmit</h2>
+      <div class="row">
+        <label>Text</label>
+      </div>
+      <textarea
+        id="txInput"
+        placeholder="Type text to send… e.g., CQ CQ DE TEST K"
+      ></textarea>
+      <div class="row" style="margin-top: 0.5rem">
+        <button id="sendBtn">Send</button>
+        <button
+          id="sendVVVBtn"
+          title="Send short preamble to help RX lock speed/frequency"
+        >
+          Send “VVV”
+        </button>
+        <span class="small status" id="txStatus"></span>
+      </div>
+      <div class="kv small" style="margin-top: 0.5rem">
+        <div>WPM (speed)</div>
+        <div>
+          <input type="range" id="wpm" min="10" max="45" step="1" value="28" />
+          <span class="mono" id="wpmVal">28</span>
+        </div>
+        <div>Tone (Hz)</div>
+        <div>
+          <input
+            type="range"
+            id="tone"
+            min="450"
+            max="900"
+            step="1"
+            value="650"
+          />
+          <span class="mono" id="toneVal">650</span>
+        </div>
+        <div>Volume</div>
+        <div>
+          <input
+            type="range"
+            id="vol"
+            min="0"
+            max="1"
+            step="0.01"
+            value="0.85"
+          />
+          <span class="mono" id="volVal">0.85</span>
+        </div>
+      </div>
+    </section>
 
-<section id="rx">
-  <h2>Receive</h2>
-  <div class="row">
-    <button id="listenBtn">Listen</button>
-    <button id="stopBtn" disabled>Stop</button>
-    <button id="clearBtn">Clear</button>
-    <label class="pill"><input type="checkbox" id="lockSpeed" /> Lock speed</label>
-    <label class="pill"><input type="checkbox" id="trackFreq" checked /> Track frequency</label>
-  </div>
-  <label for="rxOutput" style="margin-top:.5rem;">Decoded output</label>
-  <textarea id="rxOutput" placeholder="Decoded text will appear here…" readonly></textarea>
-  <div class="kv small" style="margin-top:.5rem;">
-    <div>Estimated WPM</div><div class="mono" id="estWpm">–</div>
-    <div>Unit (ms)</div><div class="mono" id="unitMs">–</div>
-    <div>Center F0 (Hz)</div><div class="mono" id="f0">–</div>
-    <div>SNR (approx)</div><div class="mono" id="snr">–</div>
-    <div>Status</div><div class="mono" id="rxStatus">Idle</div>
-  </div>
-</section>
+    <section id="rx">
+      <h2>Receive</h2>
+      <div class="row">
+        <button id="listenBtn">Listen</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <button id="clearBtn">Clear</button>
+        <label class="pill"
+          ><input type="checkbox" id="lockSpeed" /> Lock speed</label
+        >
+        <label class="pill"
+          ><input type="checkbox" id="trackFreq" checked /> Track
+          frequency</label
+        >
+      </div>
+      <label for="rxOutput" style="margin-top: 0.5rem">Decoded output</label>
+      <textarea
+        id="rxOutput"
+        placeholder="Decoded text will appear here…"
+        readonly
+      ></textarea>
+      <div class="kv small" style="margin-top: 0.5rem">
+        <div>Estimated WPM</div>
+        <div class="mono" id="estWpm">–</div>
+        <div>Unit (ms)</div>
+        <div class="mono" id="unitMs">–</div>
+        <div>Center F0 (Hz)</div>
+        <div class="mono" id="f0">–</div>
+        <div>SNR (approx)</div>
+        <div class="mono" id="snr">–</div>
+        <div>Status</div>
+        <div class="mono" id="rxStatus">Idle</div>
+      </div>
+    </section>
 
-<section>
-  <h2>Cheat Sheet (subset)</h2>
-  <pre class="mono" style="white-space: pre-wrap; margin:0;">
+    <section>
+      <h2>Cheat Sheet (subset)</h2>
+      <pre class="mono" style="white-space: pre-wrap; margin: 0">
 A .-   B -...   C -.-.   D -..   E .   F ..-.   G --.   H ....   I ..
 J .--- K -.-    L .-..   M --    N -.  O ---    P .--.  Q --.-   R .-.
 S ...  T -      U ..-    V ...-  W .-- X -..-   Y -.--  Z --..
 0 ----- 1 .---- 2 ..--- 3 ...-- 4 ....- 5 ..... 6 -.... 7 --... 8 ---.. 9 ----.
-  </pre>
-</section>
+  </pre
+      >
+    </section>
 
-<script>
-(() => {
-  // ---------- Config & constants ----------
-  const DEFAULT_WPM = 28;
-  const DEFAULT_TONE = 650;
-  const ATTACK_S = 0.006;  // raised-cosine-ish edges to reduce clicks
-  const RELEASE_S = 0.006;
+    <script>
+      (() => {
+        // ---------- Config & constants ----------
+        const DEFAULT_WPM = 28;
+        const DEFAULT_TONE = 650;
+        const ATTACK_S = 0.006; // raised-cosine-ish edges to reduce clicks
+        const RELEASE_S = 0.006;
 
-  // ---------- Morse tables ----------
-  const MORSE = {
-    A: ".-",   B: "-...", C: "-.-.", D: "-..",  E: ".",    F: "..-.",
-    G: "--.",  H: "....", I: "..",   J: ".---", K: "-.-",  L: ".-..",
-    M: "--",   N: "-.",   O: "---",  P: ".--.", Q: "--.-", R: ".-.",
-    S: "...",  T: "-",    U: "..-",  V: "...-", W: ".--",  X: "-..-",
-    Y: "-.--", Z: "--..",
-    0: "-----", 1: ".----", 2: "..---", 3: "...--", 4: "....-",
-    5: ".....", 6: "-....", 7: "--...", 8: "---..", 9: "----."
-  };
-  const REV = new Map(Object.entries(MORSE).map(([k,v]) => [v, k]));
+        // ---------- Morse tables ----------
+        const MORSE = {
+          A: ".-",
+          B: "-...",
+          C: "-.-.",
+          D: "-..",
+          E: ".",
+          F: "..-.",
+          G: "--.",
+          H: "....",
+          I: "..",
+          J: ".---",
+          K: "-.-",
+          L: ".-..",
+          M: "--",
+          N: "-.",
+          O: "---",
+          P: ".--.",
+          Q: "--.-",
+          R: ".-.",
+          S: "...",
+          T: "-",
+          U: "..-",
+          V: "...-",
+          W: ".--",
+          X: "-..-",
+          Y: "-.--",
+          Z: "--..",
+          0: "-----",
+          1: ".----",
+          2: "..---",
+          3: "...--",
+          4: "....-",
+          5: ".....",
+          6: "-....",
+          7: "--...",
+          8: "---..",
+          9: "----.",
+        };
+        const REV = new Map(Object.entries(MORSE).map(([k, v]) => [v, k]));
 
-  // ---------- DOM ----------
-  const txInput  = document.getElementById('txInput');
-  const sendBtn  = document.getElementById('sendBtn');
-  const sendVVVBtn = document.getElementById('sendVVVBtn');
-  const txStatus = document.getElementById('txStatus');
+        // ---------- DOM ----------
+        const txInput = document.getElementById("txInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const sendVVVBtn = document.getElementById("sendVVVBtn");
+        const txStatus = document.getElementById("txStatus");
 
-  const wpm      = document.getElementById('wpm');
-  const wpmVal   = document.getElementById('wpmVal');
-  const tone     = document.getElementById('tone');
-  const toneVal  = document.getElementById('toneVal');
-  const vol      = document.getElementById('vol');
-  const volVal   = document.getElementById('volVal');
+        const wpm = document.getElementById("wpm");
+        const wpmVal = document.getElementById("wpmVal");
+        const tone = document.getElementById("tone");
+        const toneVal = document.getElementById("toneVal");
+        const vol = document.getElementById("vol");
+        const volVal = document.getElementById("volVal");
 
-  const listenBtn = document.getElementById('listenBtn');
-  const stopBtn   = document.getElementById('stopBtn');
-  const clearBtn  = document.getElementById('clearBtn');
-  const lockSpeed = document.getElementById('lockSpeed');
-  const trackFreq = document.getElementById('trackFreq');
+        const listenBtn = document.getElementById("listenBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const lockSpeed = document.getElementById("lockSpeed");
+        const trackFreq = document.getElementById("trackFreq");
 
-  const rxOutput  = document.getElementById('rxOutput');
-  const estWpmEl  = document.getElementById('estWpm');
-  const unitMsEl  = document.getElementById('unitMs');
-  const f0El      = document.getElementById('f0');
-  const snrEl     = document.getElementById('snr');
-  const rxStatus  = document.getElementById('rxStatus');
+        const rxOutput = document.getElementById("rxOutput");
+        const estWpmEl = document.getElementById("estWpm");
+        const unitMsEl = document.getElementById("unitMs");
+        const f0El = document.getElementById("f0");
+        const snrEl = document.getElementById("snr");
+        const rxStatus = document.getElementById("rxStatus");
 
-  wpm.addEventListener('input', () => wpmVal.textContent = wpm.value);
-  tone.addEventListener('input', () => toneVal.textContent = tone.value);
-  vol.addEventListener('input', () => volVal.textContent = Number(vol.value).toFixed(2));
-  wpmVal.textContent = wpm.value;
-  toneVal.textContent = tone.value;
-  volVal.textContent = Number(vol.value).toFixed(2);
+        wpm.addEventListener("input", () => (wpmVal.textContent = wpm.value));
+        tone.addEventListener(
+          "input",
+          () => (toneVal.textContent = tone.value)
+        );
+        vol.addEventListener(
+          "input",
+          () => (volVal.textContent = Number(vol.value).toFixed(2))
+        );
+        wpmVal.textContent = wpm.value;
+        toneVal.textContent = tone.value;
+        volVal.textContent = Number(vol.value).toFixed(2);
 
-  // ---------- Audio (shared) ----------
-  let audioCtx;
-  function getAudioCtx() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    return audioCtx;
-  }
+        // ---------- Audio (shared) ----------
+        let audioCtx;
+        function getAudioCtx() {
+          if (!audioCtx)
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          return audioCtx;
+        }
 
-  // ---------- Transmit ----------
-  sendBtn.addEventListener('click', async () => {
-    const text = (txInput.value || '').toUpperCase();
-    if (!text.trim()) { txStatus.textContent = 'Nothing to send.'; return; }
-    await safeTransmit(text);
-  });
+        // ---------- Transmit ----------
+        sendBtn.addEventListener("click", async () => {
+          const text = (txInput.value || "").toUpperCase();
+          if (!text.trim()) {
+            txStatus.textContent = "Nothing to send.";
+            return;
+          }
+          await safeTransmit(text);
+        });
 
-  sendVVVBtn.addEventListener('click', async () => {
-    await safeTransmit('VVV VVV');
-  });
+        sendVVVBtn.addEventListener("click", async () => {
+          await safeTransmit("VVV VVV");
+        });
 
-  async function safeTransmit(text) {
-    const ctx = getAudioCtx();
-    sendBtn.disabled = true;
-    sendVVVBtn.disabled = true;
-    txStatus.textContent = 'Transmitting…';
-    try {
-      await transmit(ctx, text, Number(wpm.value), Number(tone.value), Number(vol.value));
-      txStatus.textContent = 'Done.';
-    } catch (e) {
-      console.error(e);
-      txStatus.textContent = 'Error during transmit (see console).';
-    } finally {
-      sendBtn.disabled = false;
-      sendVVVBtn.disabled = false;
-    }
-  }
+        async function safeTransmit(text) {
+          const ctx = getAudioCtx();
+          sendBtn.disabled = true;
+          sendVVVBtn.disabled = true;
+          txStatus.textContent = "Transmitting…";
+          try {
+            await transmit(
+              ctx,
+              text,
+              Number(wpm.value),
+              Number(tone.value),
+              Number(vol.value)
+            );
+            txStatus.textContent = "Done.";
+          } catch (e) {
+            console.error(e);
+            txStatus.textContent = "Error during transmit (see console).";
+          } finally {
+            sendBtn.disabled = false;
+            sendVVVBtn.disabled = false;
+          }
+        }
 
-  function scheduleRaisedCosine(gain, tStart, durMs) {
-    // Simple piecewise linear approximation to raised-cosine
-    const t0 = tStart, t1 = tStart + durMs/1000;
-    const steps = 6;
-    gain.gain.setValueAtTime(0, t0);
-    for (let k=1; k<=steps; k++) {
-      const frac = k/steps;
-      const y = 0.5 - 0.5 * Math.cos(Math.min(1, frac) * Math.PI);
-      gain.gain.linearRampToValueAtTime(y, t0 + ATTACK_S * frac);
-    }
-    gain.gain.setValueAtTime(1, Math.max(t0 + ATTACK_S, t1 - RELEASE_S));
-    for (let k=1; k<=steps; k++) {
-      const frac = k/steps;
-      const y = 1 - (0.5 - 0.5 * Math.cos(Math.min(1, frac) * Math.PI));
-      gain.gain.linearRampToValueAtTime(y, (t1 - RELEASE_S) + RELEASE_S * frac);
-    }
-    return t1;
-  }
+        function scheduleRaisedCosine(gain, tStart, durMs) {
+          // Simple piecewise linear approximation to raised-cosine
+          const t0 = tStart,
+            t1 = tStart + durMs / 1000;
+          const steps = 6;
+          gain.gain.setValueAtTime(0, t0);
+          for (let k = 1; k <= steps; k++) {
+            const frac = k / steps;
+            const y = 0.5 - 0.5 * Math.cos(Math.min(1, frac) * Math.PI);
+            gain.gain.linearRampToValueAtTime(y, t0 + ATTACK_S * frac);
+          }
+          gain.gain.setValueAtTime(1, Math.max(t0 + ATTACK_S, t1 - RELEASE_S));
+          for (let k = 1; k <= steps; k++) {
+            const frac = k / steps;
+            const y = 1 - (0.5 - 0.5 * Math.cos(Math.min(1, frac) * Math.PI));
+            gain.gain.linearRampToValueAtTime(
+              y,
+              t1 - RELEASE_S + RELEASE_S * frac
+            );
+          }
+          return t1;
+        }
 
-  async function transmit(ctx, plainText, wpm, freqHz, volume) {
-    const UNIT_MS = 1200 / wpm;
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = freqHz;
+        async function transmit(ctx, plainText, wpm, freqHz, volume) {
+          const UNIT_MS = 1200 / wpm;
+          const osc = ctx.createOscillator();
+          osc.type = "sine";
+          osc.frequency.value = freqHz;
 
-    const gain = ctx.createGain();
-    gain.gain.value = 0.0;
+          const gain = ctx.createGain();
+          gain.gain.value = 0.0;
 
-    const volNode = ctx.createGain();
-    volNode.gain.value = volume;
+          const volNode = ctx.createGain();
+          volNode.gain.value = volume;
 
-    osc.connect(gain).connect(volNode).connect(ctx.destination);
-    osc.start();
+          osc.connect(gain).connect(volNode).connect(ctx.destination);
+          osc.start();
 
-    // Build the on/off schedule as [isOn, durationMs]
-    const seq = [];
-    const upper = plainText.toUpperCase();
+          // Build the on/off schedule as [isOn, durationMs]
+          const seq = [];
+          const upper = plainText.toUpperCase();
 
-    for (let i = 0; i < upper.length; i++) {
-      const ch = upper[i];
-      if (ch === ' ') { seq.push([0, 7*UNIT_MS]); continue; }
-      const code = MORSE[ch];
-      if (!code) continue;
-      for (let j = 0; j < code.length; j++) {
-        const dur = (code[j] === '.') ? 1*UNIT_MS : 3*UNIT_MS;
-        seq.push([1, dur]);
-        seq.push([0, 1*UNIT_MS]);
-      }
-      // replace last intra-element gap (1u) with letter gap (3u)
-      if (seq.length && seq[seq.length-1][0] === 0) seq[seq.length-1][1] += 2*UNIT_MS;
-    }
+          for (let i = 0; i < upper.length; i++) {
+            const ch = upper[i];
+            if (ch === " ") {
+              seq.push([0, 7 * UNIT_MS]);
+              continue;
+            }
+            const code = MORSE[ch];
+            if (!code) continue;
+            for (let j = 0; j < code.length; j++) {
+              const dur = code[j] === "." ? 1 * UNIT_MS : 3 * UNIT_MS;
+              seq.push([1, dur]);
+              seq.push([0, 1 * UNIT_MS]);
+            }
+            // replace last intra-element gap (1u) with letter gap (3u)
+            if (seq.length && seq[seq.length - 1][0] === 0)
+              seq[seq.length - 1][1] += 2 * UNIT_MS;
+          }
 
-    // Schedule on WebAudio clock
-    let when = ctx.currentTime + 0.05;
-    for (const [isOn, durMs] of seq) {
-      if (isOn) when = scheduleRaisedCosine(gain, when, durMs);
-      else when += durMs / 1000;
-    }
-    const stopAt = when + 0.05;
-    osc.stop(stopAt);
-    await new Promise(res => setTimeout(res, (stopAt - ctx.currentTime) * 1000 + 50));
-  }
+          // Schedule on WebAudio clock
+          let when = ctx.currentTime + 0.05;
+          for (const [isOn, durMs] of seq) {
+            if (isOn) when = scheduleRaisedCosine(gain, when, durMs);
+            else when += durMs / 1000;
+          }
+          const stopAt = when + 0.05;
+          osc.stop(stopAt);
+          await new Promise((res) =>
+            setTimeout(res, (stopAt - ctx.currentTime) * 1000 + 50)
+          );
+        }
 
-  // ---------- Receive (AudioWorklet + Goertzel) ----------
-  // Worklet code as a string to keep single-file
-  const workletCode = `
+        // ---------- Receive (AudioWorklet + Goertzel) ----------
+        // Worklet code as a string to keep single-file
+        const workletCode = `
   class GoertzelDetector extends AudioWorkletProcessor {
     constructor(options) {
       super();
@@ -358,30 +502,127 @@ S ...  T -      U ..-    V ...-  W .-- X -..-   Y -.--  Z --..
   registerProcessor('goertzel-detector', GoertzelDetector);
   `;
 
-  let mediaStream = null;
-  let workletNode = null;
-  let rxRunning = false;
+        let mediaStream = null;
+        let workletNode = null;
+        let rxRunning = false;
+        let unitSamples = 0;
+        let symbolBuf = "";
+        let rxSampleRate = 0;
 
-  listenBtn.addEventListener('click', () => startListening().catch(err => {
-    console.error(err);
-    rxStatus.textContent = 'Mic error (see console).';
-  }));
-  stopBtn.addEventListener('click', stopListening);
-  clearBtn.addEventListener('click', () => { rxOutput.value = ''; });
+        listenBtn.addEventListener("click", () =>
+          startListening().catch((err) => {
+            console.error(err);
+            rxStatus.textContent = "Mic error (see console).";
+          })
+        );
+        stopBtn.addEventListener("click", stopListening);
+        clearBtn.addEventListener("click", () => {
+          rxOutput.value = "";
+        });
+        trackFreq.addEventListener("change", () => {
+          if (workletNode)
+            workletNode.port.postMessage({
+              cmd: "track",
+              on: trackFreq.checked,
+            });
+        });
 
-  // The receive logic was truncated in this snapshot, which left the script
-  // unfinished and prevented the transmit button from working. Provide simple
-  // placeholders so that the page parses and the transmit functionality is
-  // usable.
-  async function startListening() {
-    rxStatus.textContent = 'Receive not available in this build.';
-  }
+        async function startListening() {
+          if (rxRunning) return;
+          const ctx = getAudioCtx();
+          rxSampleRate = ctx.sampleRate;
+          const blob = new Blob([workletCode], {
+            type: "application/javascript",
+          });
+          await ctx.audioWorklet.addModule(URL.createObjectURL(blob));
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          const src = ctx.createMediaStreamSource(mediaStream);
+          workletNode = new AudioWorkletNode(ctx, "goertzel-detector", {
+            processorOptions: { f0: DEFAULT_TONE, track: trackFreq.checked },
+          });
+          workletNode.port.onmessage = (e) => {
+            const d = e.data || {};
+            if (d.type === "EDGE") handleEdge(d.on, d.span);
+            if (d.type === "TEL") handleTel(d);
+          };
+          const sink = ctx.createGain();
+          sink.gain.value = 0;
+          src.connect(workletNode).connect(sink).connect(ctx.destination);
+          rxRunning = true;
+          listenBtn.disabled = true;
+          stopBtn.disabled = false;
+          rxStatus.textContent = "Listening…";
+          unitSamples = 0;
+          symbolBuf = "";
+          updateUnitDisplay();
+        }
 
-  function stopListening() {
-    rxStatus.textContent = 'Idle';
-  }
+        function stopListening() {
+          if (!rxRunning) return;
+          rxRunning = false;
+          if (workletNode) {
+            workletNode.disconnect();
+            workletNode = null;
+          }
+          if (mediaStream) {
+            mediaStream.getTracks().forEach((t) => t.stop());
+            mediaStream = null;
+          }
+          listenBtn.disabled = false;
+          stopBtn.disabled = true;
+          rxStatus.textContent = "Idle";
+        }
 
-})();
-</script>
-</body>
+        function handleEdge(on, span) {
+          if (on) processGap(span);
+          else processTone(span);
+        }
+
+        function processTone(span) {
+          if (unitSamples === 0) unitSamples = span;
+          else if (!lockSpeed.checked && span < 2.5 * unitSamples)
+            unitSamples = 0.8 * unitSamples + 0.2 * span;
+          const sym = span > 2 * unitSamples ? "-" : ".";
+          symbolBuf += sym;
+          updateUnitDisplay();
+        }
+
+        function processGap(span) {
+          if (unitSamples === 0) return;
+          if (span >= 6 * unitSamples) {
+            flushSymbol();
+            rxOutput.value += " ";
+          } else if (span >= 2.5 * unitSamples) {
+            flushSymbol();
+          }
+        }
+
+        function flushSymbol() {
+          if (!symbolBuf) return;
+          const ch = REV.get(symbolBuf) || "?";
+          rxOutput.value += ch;
+          rxOutput.scrollTop = rxOutput.scrollHeight;
+          symbolBuf = "";
+        }
+
+        function handleTel(d) {
+          f0El.textContent = d.f0.toFixed(1);
+          snrEl.textContent = d.snr.toFixed(1);
+        }
+
+        function updateUnitDisplay() {
+          if (!unitSamples) {
+            estWpmEl.textContent = "–";
+            unitMsEl.textContent = "–";
+            return;
+          }
+          const unitMs = (unitSamples * 1000) / rxSampleRate;
+          unitMsEl.textContent = unitMs.toFixed(1);
+          estWpmEl.textContent = (1200 / unitMs).toFixed(1);
+        }
+      })();
+    </script>
+  </body>
 </html>
