@@ -32,6 +32,7 @@ import { MORSE, REV } from "./morse.js";
         const f0El = document.getElementById("f0");
         const snrEl = document.getElementById("snr");
         const rxStatus = document.getElementById("rxStatus");
+        const toneIndicator = document.getElementById("toneIndicator");
 
         wpm.addEventListener("input", () => {
           wpmVal.textContent = wpm.value;
@@ -231,6 +232,7 @@ import { MORSE, REV } from "./morse.js";
           stopBtn.disabled = false;
           rxStatus.textContent = "Listening…";
           symbolBuf = "";
+          toneIndicator.classList.remove("on");
           updateUnitSamples();
           updateUnitDisplay();
         }
@@ -249,11 +251,17 @@ import { MORSE, REV } from "./morse.js";
           listenBtn.disabled = false;
           stopBtn.disabled = true;
           rxStatus.textContent = "Idle";
+          toneIndicator.classList.remove("on");
         }
 
         function handleEdge(on, span) {
-          if (on) processGap(span);
-          else processTone(span);
+          if (on) {
+            processGap(span);
+            toneIndicator.classList.add("on");
+          } else {
+            processTone(span);
+            toneIndicator.classList.remove("on");
+          }
         }
 
         function processTone(span) {
